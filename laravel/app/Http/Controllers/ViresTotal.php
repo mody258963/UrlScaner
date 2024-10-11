@@ -7,10 +7,12 @@ use GuzzleHttp\Client;
 
 class ViresTotal extends Controller
 {
-    public function analyzeUrl(Request $request)
+    public function analyzeUrlViresTotal($url)
     {
+        set_time_limit(seconds: 600);
+
         // Get the URL from the request
-        $url = $request->input('url', 'https://majdsoft.000webhostapp.com/pages/index.php'); // default URL for testing
+
     
         // Retrieve your VirusTotal API key from the .env file
         $apiKey = env('VIRUSTOTAL_API_KEY');
@@ -20,6 +22,7 @@ class ViresTotal extends Controller
     
         // Step 1: Submit the URL for analysis
         try {
+            
             $response = $client->request('POST', 'https://www.virustotal.com/api/v3/urls', [
                 'form_params' => [
                     'url' => $url
@@ -45,11 +48,12 @@ class ViresTotal extends Controller
                     ]
                 ]);
     
+                 sleep(60);
                 // Decode the response from VirusTotal
                 $resultBody = json_decode($resultResponse->getBody(), true);
     
                 // Return the result to the user
-                return response()->json($resultBody);
+                return response()->json($resultBody['data']['attributes']['stats']);
             } else {
                 return response()->json(['error' => 'Failed to get analysis ID'], 400);
             }
@@ -60,59 +64,100 @@ class ViresTotal extends Controller
         }
     }
 
-    public function analyzeUrlBehavior(Request $request)
+
+ 
+    public function HybridAnalysisScanUrl($url)
     {
-        // Get the URL from the request
-        $url = $request->input('url', 'https://majdsoft.000webhostapp.com/pages/index.php'); // default URL for testing
 
-        // Retrieve your VirusTotal API key from the .env file
-        $apiKey = env('VIRUSTOTAL_API_KEY');
+        set_time_limit(seconds: 600);
 
-        // Create a new HTTP client
+        // Validate the URL
+
+        // Get the URL to scan
+
+        // Get your API key from .env file
+        $apiKey = env('HYBRID_ANALYSIS_API_KEY');
+
+        // Create a new Guzzle client
         $client = new Client();
 
         try {
-            // Step 1: Submit the URL to VirusTotal for analysis (URL is base64 encoded)
-            $encodedUrl = rtrim(strtr(base64_encode($url), '+/', '-_'), '=');
-
-            $response = $client->request('POST', 'https://www.virustotal.com/api/v3/urls', [
-                'form_params' => [
-                    'url' => $url
-                ],
+            // Step 1: Submit the URL to Hybrid Analysis
+            $response = $client->request('POST', 'https://hybrid-analysis.com/api/v2/quick-scan/url', [
                 'headers' => [
-                    'accept' => 'application/json',
-                    'content-type' => 'application/x-www-form-urlencoded',
-                    'x-apikey' => $apiKey,
+                    'api-key' => $apiKey,
+                    'Content-Type' => 'application/x-www-form-urlencoded',
+                ],
+                'form_params' => [
+                    'url' => $url,         // The URL you want to scan
+                    'scan_type' => 'all', // Choose scan type
                 ],
             ]);
 
-            // Decode the response to get the analysis ID
-            $body = json_decode($response->getBody(), true);
+                // Step 2: Fetch the report after some time (sleep for scan to complete)
+                    sleep(60); // Wait for the scan to finish, adjust time as needed
 
-            if (isset($body['data']['id'])) {
-                $analysisId = $body['data']['id'];
+      
 
-                // Step 2: Retrieve the behavior analysis report using the analysis ID
-                $reportResponse = $client->request('GET', 'https://www.virustotal.com/api/v3/analyses/' . $analysisId, [
-                    'headers' => [
-                        'x-apikey' => $apiKey,
-                        'accept' => 'application/json'
-                    ]
+                // Decode the report response
+                $report = json_decode($response->getBody(), true);
+                //dd($report);
+
+
+                $scanners_v2 = $report['scanners_v2'];
+                $filteredScanners = [];
+        
+                foreach ($scanners_v2 as $scanner) {
+                    if ($scanner !== null) {
+                        $filteredScanners[] = [
+                            'name' => $scanner['name'],
+                            'status' => $scanner['status'],
+                        ];
+                    }
+                }
+
+                return response()->json([
+                    'status' => 'success',
+                    'URL Type' => $report['submission_type'],
+                    'id' => $report['id'],
+                    'report' => $filteredScanners,
                 ]);
+        
 
-                // Decode the behavior analysis report
-                $reportBody = json_decode($reportResponse->getBody(), true);
-
-                // Return the detailed behavior report as JSON
-                return response()->json($reportBody);
-            } else {
-                return response()->json(['error' => 'Failed to get analysis ID'], 400);
-            }
-
+            // If the job_id is not returned
         } catch (\Exception $e) {
-            // Handle any errors that occur during the API request
-            return response()->json(['error' => 'Failed to analyze URL behavior', 'message' => $e->getMessage()], 500);
+            // Handle the error
+            return response()->json(['error' => 'An error occurred: ' . $e->getMessage()], 500);
         }
     }
+    
+    public function analyzeUrl(Request $request)
+    {
+        //dd(123);
+        // Validate the request input
+        $validated = $request->validate([
+            'url' => 'required|url'
+        ]);
+    
+        if ($validated) {
+            // Perform VirusTotal analysis
+             $VirusTotal = $this->analyzeUrlViresTotal($request->input('url'));
+    
+            // Perform Hybrid analysis
+            $hybierd = $this->HybridAnalysisScanUrl($request->input('url'));
+    
+            // Remove 'headers' and 'original' from the VirusTotal result
+
+
+        
+    
+            // Return the response as JSON
+            return response()->json([
+               'Dynamic analysis' => $hybierd,
+               'Static analysis' => $VirusTotal
+            ]);
+        }
+    }
+
     
 }

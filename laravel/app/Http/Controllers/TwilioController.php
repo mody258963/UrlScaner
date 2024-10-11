@@ -10,7 +10,7 @@ class TwilioController extends Controller
 {
     protected $urlAnalysisService;
 
-    public function __construct(UrlAnalysisService $urlAnalysisService)
+    public function __construct(ViresTotal $urlAnalysisService)
     {
         $this->urlAnalysisService = $urlAnalysisService;
     }
