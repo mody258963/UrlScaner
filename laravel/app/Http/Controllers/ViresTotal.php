@@ -7,6 +7,7 @@ use GuzzleHttp\Client;
 
 class ViresTotal extends Controller
 {
+    private $baseUrl = 'https://www.hybrid-analysis.com/api/v2';
     public function analyzeUrlViresTotal($url)
     {
         set_time_limit(seconds: 600);
@@ -22,10 +23,12 @@ class ViresTotal extends Controller
     
         // Step 1: Submit the URL for analysis
         try {
-            
-            $response = $client->request('POST', 'https://www.virustotal.com/api/v3/urls', [
+                    
+            $submissionResponse = $client->request('POST', $this->baseUrl . '/submit/url', [
                 'form_params' => [
-                    'url' => $url
+                    'url' => $url,
+                    'environment_id' => 120 , 
+                    'custom_run_time' => 360
                 ],
                 'headers' => [
                     'accept' => 'application/json',
@@ -33,15 +36,33 @@ class ViresTotal extends Controller
                     'x-apikey' => $apiKey,
                 ],
             ]);
+
+            if (!isset($submissionResponse['job_id'])) {
+                return response()->json(['error' => 'Failed to submit URL for analysis'], 400);
+            }
     
-            $body = json_decode($response->getBody(), true);
+            $reportId = $submissionResponse['job_id'];
+
+            $StatusResponse = $client->request('GET', $this->baseUrl . "/report/{$reportId}/state", [
+                'headers' => [
+                    'accept' => 'application/json',
+                    'content-type' => 'application/x-www-form-urlencoded',
+                    'x-apikey' => $apiKey,
+                ],
+
+            ]);
+
+            if ( $StatusResponse['state'] == 'ERROR' ) {
+                return response()->json(['error' => 'Failed to submit URL for analysis'], 400);
+            }
+
+
     
             // Check if the response contains an analysis ID
-            if (isset($body['data']['id'])) {
-                $analysisId = $body['data']['id'];
+            if ($StatusResponse['state'] == 'SUCCESS') {
     
                 // Step 2: Use the analysis ID to retrieve the analysis result
-                $resultResponse = $client->request('GET', 'https://www.virustotal.com/api/v3/analyses/' . $analysisId, [
+                $resultResponse = $client->request('GET', $this->baseUrl . "/report/{$reportId}/summary". $analysisId, [
                     'headers' => [
                         'x-apikey' => $apiKey,
                         'accept' => 'application/json'
