@@ -142,20 +142,37 @@ class ViresTotal extends Controller
                 ]);
                 
                 $resultBody = json_decode($resultResponse->getBody(), true);
-
-                $array = [$resultBody['classification_tags'],$resultBody['tags'],'environment description' . $resultBody['environment_description'],'AV Detect :' . $resultBody['av_detect'],'VX Family :' . $resultBody['vx_family'],'Threat Score:' . $resultBody['threat_score'],'Verdict :' . $resultBody['verdict'],'total network connections :' . $resultBody['total_network_connections'],'total processes :' . $resultBody['total_processes'],'total signatures:' . $resultBody['total_signatures']];
+                $responseArray = [
+                    'job_id' => $resultBody['job_id'],
+                    'classification_tags' => $resultBody['classification_tags'],
+                    'tags' => $resultBody['tags'],
+                    'environment_description' => $resultBody['environment_description'],
+                    'threat_level' => $resultBody['threat_level'],
+                    'AV_detect' => $resultBody['av_detect'],
+                    'VX_family' => $resultBody['vx_family'],
+                    'threat_score' => $resultBody['threat_score'],
+                    'verdict' => $resultBody['verdict'],
+                    'total_network_connections' => $resultBody['total_network_connections'],
+                    'total_processes' => $resultBody['total_processes'],
+                    'total_signatures' => $resultBody['total_signatures']
+                ];
+    
+                // 5. Add signatures to the response array
                 foreach ($resultBody['signatures'] as $signature) {
                     if (isset($signature['threat_level_human']) && isset($signature['name'])) {
-                        // Add the threat_level_human and name to the filteredSignatures array
-                        $array[] = [
-                            'threat_level_human' => $signature['threat_level_human'],
-                            'name' => $signature['name'],
-                        ];
-                    
+                        // Exclude signatures where 'threat_level_human' is 'informative'
+                        if ($signature['threat_level_human'] !== "informative") {
+                            $responseArray['signatures'][] = [
+                                'threat_level_human' => $signature['threat_level_human'],
+                                'name' => $signature['name'],
+                            ];
+                        }
+                    }
                 }
-            }
                 
-                return $array;
+                // Return the final JSON response
+                return response()->json($responseArray);
+    
                 
             } catch (\Exception $e) {
             return ['error' => 'Failed to analyze the URL', 'message' => $e->getMessage()];
