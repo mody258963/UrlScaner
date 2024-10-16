@@ -22,7 +22,7 @@ use App\Http\Controllers\HybridAnalysisController;
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
-Route::post('/whatsapp-webhook', [TwilioController::class, 'handleIncomingMessage']);
+Route::post('/webhook/whatsapp', [TwilioController::class, 'handleIncomingMessage']);
 Route::post('/analyze-url-total', [ViresTotal::class, 'analyzeUrlViresTotal']);
 Route::post('/scan-url-hybrid', [ViresTotal::class, 'HybridAnalysisScanUrl']);
 Route::post('/analyze-url', [ViresTotal::class, 'analyzeUrl']);

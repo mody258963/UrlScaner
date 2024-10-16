@@ -7,9 +7,10 @@ use GuzzleHttp\Client;
 
 class ViresTotal extends Controller
 {
+    
     private $baseUrlHybired = 'https://www.hybrid-analysis.com/api/v2';
     private $baseUrl;
-
+    
     // Analyze URL using VirusTotal
     public function analyzeUrlVirusTotal($url)
     {
@@ -71,8 +72,10 @@ class ViresTotal extends Controller
             ]);
     
             $resultBody = json_decode($resultResponse->getBody(), true);
-    
-            return $resultBody['data']['attributes']['stats']; // Return result directly for further processing
+            $last = $resultBody['data']['attributes']['stats'];
+            unset($last['timeout']);
+
+            return $last; // Return result directly for further processing
     
         } catch (\Exception $e) {
             return ['error' => 'Failed to analyze the URL', 'message' => $e->getMessage()];
@@ -85,7 +88,8 @@ class ViresTotal extends Controller
         //set_time_limit(600);
         $apiKey = env('HYBRID_ANALYSIS_API_KEY');
         $client = new Client();
-    
+        ini_set('max_execution_time', 100); // Increase to 60 seconds
+
         try {
             // Submit URL for analysis
             $submissionResponse = $client->request('POST', $this->baseUrlHybired . '/submit/url', [
@@ -111,6 +115,7 @@ class ViresTotal extends Controller
             $reportId = $submissionBody['job_id'];
             if ($submissionResponse){
                 do {
+                    sleep(20);
                     $statusResponse = $client->request('GET', $this->baseUrlHybired . "/report/{$reportId}/state", [
                         'headers' => [
                             'accept' => 'application/json', 
@@ -165,6 +170,7 @@ class ViresTotal extends Controller
                             $responseArray['signatures'][] = [
                                 'threat_level_human' => $signature['threat_level_human'],
                                 'name' => $signature['name'],
+                                'category' => $signature['category']
                             ];
                         }
                     }
