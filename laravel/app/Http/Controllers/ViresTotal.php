@@ -15,7 +15,7 @@ class ViresTotal extends Controller
     public function analyzeUrlVirusTotal($url)
     {
         // Extend the script execution time to handle long requests
-        set_time_limit(600);
+        set_time_limit(seconds: 600);
     
         // Retrieve your VirusTotal API key from the .env file
         $apiKey = env('VIRUSTOTAL_API_KEY');
@@ -26,7 +26,7 @@ class ViresTotal extends Controller
             // Submit URL for analysis
             $submissionResponse = $client->request('POST', $this->baseUrl . '/urls', [
                 'headers' => [
-                    'x-apikey' => $apiKey,
+                    'x-apikey' => 'f8ff26872b3fb38c2c4aee88691304f041543091d3dd667524e99a77025fc18c',
                     'Content-Type' => 'application/x-www-form-urlencoded',
                 ],
                 'form_params' => [
@@ -46,7 +46,7 @@ class ViresTotal extends Controller
             do {
                 $statusResponse = $client->request('GET', $this->baseUrl . "/analyses/{$reportId}", [
                     'headers' => [
-                        'x-apikey' => $apiKey,
+                        'x-apikey' => 'f8ff26872b3fb38c2c4aee88691304f041543091d3dd667524e99a77025fc18c',
                         'accept' => 'application/json',
                     ],
                 ]);
@@ -66,7 +66,7 @@ class ViresTotal extends Controller
             // Retrieve the analysis result
             $resultResponse = $client->request('GET', $this->baseUrl . "/analyses/{$reportId}", [
                 'headers' => [
-                    'x-apikey' => $apiKey,
+                    'x-apikey' => 'f8ff26872b3fb38c2c4aee88691304f041543091d3dd667524e99a77025fc18c',
                     'accept' => 'application/json',
                 ]
             ]);
@@ -89,7 +89,6 @@ class ViresTotal extends Controller
         $apiKey = env('HYBRID_ANALYSIS_API_KEY');
         $client = new Client();
         ini_set('max_execution_time', 100); // Increase to 60 seconds
-
         try {
             // Submit URL for analysis
             $submissionResponse = $client->request('POST', $this->baseUrlHybired . '/submit/url', [
@@ -101,7 +100,7 @@ class ViresTotal extends Controller
                 'headers' => [
                     'accept' => 'application/json',
                     'content-type' => 'application/x-www-form-urlencoded',
-                    'api-key' => $apiKey,
+                    'api-key' => 'k5152a7h6f53ed65enk3re3p0efda626ateoh202ffe6f96c3r1tupqrfc2de219',
                 ],
             ]);
             
@@ -120,7 +119,7 @@ class ViresTotal extends Controller
                         'headers' => [
                             'accept' => 'application/json', 
                             'content-type' => 'application/x-www-form-urlencoded',
-                            'api-key' => $apiKey,
+                            'api-key' => 'k5152a7h6f53ed65enk3re3p0efda626ateoh202ffe6f96c3r1tupqrfc2de219',
                         ],
                     ]);
                     
@@ -141,7 +140,7 @@ class ViresTotal extends Controller
             // Retrieve the analysis result
             $resultResponse = $client->request('GET', $this->baseUrlHybired . "/report/{$reportId}/summary", [
                 'headers' => [
-                    'api-key' => $apiKey,
+                    'api-key' => 'k5152a7h6f53ed65enk3re3p0efda626ateoh202ffe6f96c3r1tupqrfc2de219',
                     'accept' => 'application/json',
                     ]
                 ]);
@@ -185,22 +184,19 @@ class ViresTotal extends Controller
         }
     }
 
-    // Main function to analyze the URL with both VirusTotal and Hybrid Analysis
-    public function analyzeUrl(Request $request)
+
+    public function analyzeUrl($url)
     {
-        $validated = $request->validate(['url' => 'required|url']);
-    
-        if ($validated) {
-            // Perform VirusTotal and Hybrid Analysis
-           
-            $hybridResult = $this->HybridAnalysisScanUrl($request->input('url'));
+             
+            $hybridResult = $this->HybridAnalysisScanUrl($url);
            if($hybridResult){
-            $virusTotalResult = $this->analyzeUrlVirusTotal($request->input('url'));
+            $virusTotalResult = $this->analyzeUrlVirusTotal($url);
            }
+           
+           
             return response()->json([
-                'Dynamic Analysis (Hybrid)' => $hybridResult,
-                'Static Analysis (VirusTotal)' => $virusTotalResult
+                 $hybridResult,
+                $virusTotalResult
             ]);
-        }
     }
 }
