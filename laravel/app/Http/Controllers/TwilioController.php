@@ -32,6 +32,7 @@ class TwilioController extends Controller
             $result = "This is not a valid URL.";
         } else {
             // If it's a valid URL, call the URL analysis service to analyze the URL
+            $result = "نقوم بتحليل ، الرابط الرجاء الانتظار. قليلاً";
             $resultBody = $this->urlAnalysisService->analyzeUrl($requestBody);
     
             // Log the raw result for debugging
@@ -48,6 +49,7 @@ class TwilioController extends Controller
     
             // Check if decoding was successful and if it is an array
             if (json_last_error() === JSON_ERROR_NONE && is_array($decodedResult)) {
+                
                 
                  $result = $this->handleThreatAnalysisArray($decodedResult); 
                  $this->sendWhatsAppMessage($request->input('From'),$result);
@@ -87,13 +89,28 @@ class TwilioController extends Controller
         $dynamicAnalysis = $data[0]['original'];
 
         // Extract key details from dynamic analysis
+        $classificationTags = $dynamicAnalysis['classification_tags'];
         $verdict = $dynamicAnalysis['verdict'] ?? 'Unknown verdict';
         $threatLevel = $dynamicAnalysis['threat_level'] ?? 'Unknown threat level';
+        $threatScore = $dynamicAnalysis['threat_score'] ?? 0;
         $totalProcesses = $dynamicAnalysis['total_processes'] ?? 0;
         $totalNetworkConnections = $dynamicAnalysis['total_network_connections'] ?? 0;
         $totalSignatures = $dynamicAnalysis['total_signatures'] ?? 0;
 
         // Build the summary for dynamic analysis
+        $summary .= "شكرا للإنتظار لقد قمنا بتحليل الرابط الذي أرسلته\n";
+        $summary .= "نوع التحليل\n";
+        $summary .= "تحليل : ثابت تم فحص الرمز والعناصر المكونة للرابط للتحقق من أي إشارات مشبوهة -\n";
+        $summary .= "تحلیل :ديناميكي تم اختبار الرابط في بيئة آمنة لمراقبة سلوكه عند الوصول إليه -\n";
+        $summary .= "Windows 10 64-bit بيئه الاختبار -\n";
+        $summary .= "__________________________________________________________________________________";
+        $summary .= "نود إبلاغك بأن التحليل الرابط يشير إلى\n";
+        $summary .= "الحكم النهائي: $verdict\n -";
+        $summary .= "% درجة: التهديد $threatScore\n -";
+        $summary .= " $classificationTags التصنيف تصيد احتيالي -";
+        $summary .= "__________________________________________________________________________________";
+        $summary .= "\nيمكنم الإتطلاع على المزيد من تفاصيل";
+        $summary .= "";
         $summary .= "Dynamic Analysis:\n";
         $summary .= "Verdict: $verdict\n";
         $summary .= "Threat Level: $threatLevel\n";
