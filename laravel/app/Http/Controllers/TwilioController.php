@@ -162,6 +162,7 @@ private function sendWhatsAppMessage($to, $body)
    //$to = 'whatsapp:+201115298888';
     Log::info('phone number ' . $to);
     try {
+        $twilio->setSslVerification(false);
         $message = $twilio->messages->create(
             $to,
             [
