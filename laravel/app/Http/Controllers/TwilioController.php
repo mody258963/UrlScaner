@@ -50,9 +50,13 @@ class TwilioController extends Controller
             // Check if decoding was successful and if it is an array
             if (json_last_error() === JSON_ERROR_NONE && is_array($decodedResult)) {
                 
-                
-                 $result = $this->handleThreatAnalysisArray($decodedResult); 
-                 $this->sendWhatsAppMessage($request->input('From'),$result);
+                $result = 'نقوم بتحليل ، الرابط الرجاء الانتظار. قليلاً';
+                 $resultEnd = $this->handleThreatAnalysisArray($decodedResult); 
+
+               foreach ($resultEnd as $messagePart) {
+            $this->sendWhatsAppMessage($request->input('From'), $messagePart);
+            sleep(1);  // Delay to avoid rapid consecutive messages (optional)
+        }
                  
             } else {
                 // Log the decoding error and return an error message
@@ -75,93 +79,83 @@ class TwilioController extends Controller
     }
 
 
-
-
     private function handleThreatAnalysisArray($data)
-{
-    Log::info('Handling threat analysis array: ' . json_encode($data));
+    {
+        Log::info('Handling threat analysis array: ' . json_encode($data));
+    
+        // Initialize an array to hold the message parts
+        $summaryParts = [];
+    
+        // Check for "Dynamic Analysis (Hybrid)" in the first element of the array
+        if (isset($data[0]['original'])) {
+            $dynamicAnalysis = $data[0]['original'];
+    
+            // Extract key details from dynamic analysis
+            $classificationTags = $dynamicAnalysis['classification_tags'] ?? [];
+            $verdict = $dynamicAnalysis['verdict'] ?? 'Unknown verdict';
+            $threatScore = $dynamicAnalysis['threat_score'] ?? 0;
+            $totalProcesses = $dynamicAnalysis['total_processes'] ?? 0;
+            $totalNetworkConnections = $dynamicAnalysis['total_network_connections'] ?? 0;
+            $totalSignatures = $dynamicAnalysis['total_signatures'] ?? 0;
+            $avDetect = $dynamicAnalysis['AV_detect'];
+    
+            // Break the message into parts and push them into the array
+            $summaryParts[] = "شكرا للإنتظار لقد قمنا بتحليل الرابط الذي أرسلته\n";
+            
+                        if (is_array($classificationTags)) {
+                           $name =  "التصنيف: " . implode(', ', $classificationTags) . "\n";
+                        }
+            
+            $summaryParts[] = "نوع التحليل:\n" .
+                "تحليل ثابت: تم فحص الرمز والعناصر المكونة للرابط للتحقق من أي إشارات مشبوهة.\n" .
+                "تحليل ديناميكي: تم اختبار الرابط في بيئة آمنة لمراقبة سلوكه عند الوصول إليه.\n" .
+                "بيئة الاختبار: Windows 10 64-bit.\n" .
+                "____________________________________________________________________________\n" .
+                "الحكم النهائي: $verdict\n" .
+                "درجة التهديد: $threatScore%\n" . 
+                $name ;
 
-    // Initialize the summary string
-    $summary = "";
 
-    // Check for "Dynamic Analysis (Hybrid)" in the first element of the array
-    if (isset($data[0]['original'])) {
-        $dynamicAnalysis = $data[0]['original'];
-
-        // Extract key details from dynamic analysis
-        $classificationTags = $dynamicAnalysis['classification_tags'];
-        $verdict = $dynamicAnalysis['verdict'] ?? 'Unknown verdict';
-        $threatLevel = $dynamicAnalysis['threat_level'] ?? 'Unknown threat level';
-        $threatScore = $dynamicAnalysis['threat_score'] ?? 0;
-        $totalProcesses = $dynamicAnalysis['total_processes'] ?? 0;
-        $totalNetworkConnections = $dynamicAnalysis['total_network_connections'] ?? 0;
-        $totalSignatures = $dynamicAnalysis['total_signatures'] ?? 0;
-
-        // Build the summary for dynamic analysis
-        $summary .= "شكرا للإنتظار لقد قمنا بتحليل الرابط الذي أرسلته\n";
-        $summary .= "نوع التحليل\n";
-        $summary .= "تحليل : ثابت تم فحص الرمز والعناصر المكونة للرابط للتحقق من أي إشارات مشبوهة -\n";
-        $summary .= "تحلیل :ديناميكي تم اختبار الرابط في بيئة آمنة لمراقبة سلوكه عند الوصول إليه -\n";
-        $summary .= "Windows 10 64-bit بيئه الاختبار -\n";
-        $summary .= "__________________________________________________________________________________";
-        $summary .= "نود إبلاغك بأن التحليل الرابط يشير إلى\n";
-        $summary .= "الحكم النهائي: $verdict\n -";
-        $summary .= "% درجة: التهديد $threatScore\n -";
-        $summary .= " $classificationTags التصنيف تصيد احتيالي -";
-        $summary .= "__________________________________________________________________________________";
-        $summary .= "\nيمكنم الإتطلاع على المزيد من تفاصيل";
-        $summary .= "";
-        $summary .= "Dynamic Analysis:\n";
-        $summary .= "Verdict: $verdict\n";
-        $summary .= "Threat Level: $threatLevel\n";
-        $summary .= "Total Processes: $totalProcesses\n";
-        $summary .= "Total Network Connections: $totalNetworkConnections\n";
-        $summary .= "Total Signatures: $totalSignatures\n";
-
-        // Append signature details if available
-        if (!empty($dynamicAnalysis['signatures'])) {
-            $summary .= "Signatures:\n";
-            foreach ($dynamicAnalysis['signatures'] as $signature) {
-                $signatureName = $signature['name'] ?? 'Unknown signature';
-                $signatureCategory = $signature['category'] ?? 'Unknown category';
-                $threatLevelHuman = $signature['threat_level_human'] ?? 'Unknown threat level';
-                $summary .= "- $signatureName (Category: $signatureCategory, Threat: $threatLevelHuman)\n";
+    
+            $summaryParts[] = "للمزيد من التفاصيل\n" .  " $avDetect من  برامج مضادة للفيروسات اكتشفت اشتباه تهديد.\n" .
+                "تم العثور على $totalSignatures توقيعًا يحتمل أن يكون تهديدًا.\n" .
+                "تم العثور على $totalNetworkConnections اتصالًا بالشبكة.\n" .
+                "تم العثور على $totalProcesses عملية تم تشغيلها أثناء التحليل الديناميكي.\n";
+    
+            // Append signature details if available
+            if (!empty($dynamicAnalysis['signatures'])) {
+                $signatureDetails = "كانت العمليات  المشبوه على النحو  التالي:\n";
+                foreach ($dynamicAnalysis['signatures'] as $signature) {
+                    $signatureName = $signature['name'] ?? 'Unknown signature';
+                    $signatureDetails .= "$signatureName\n";
+                }
+                $summaryParts[] = $signatureDetails;
             }
+        } else {
+            $summaryParts[] = "No dynamic analysis data found.\n";
         }
-    } else {
-        $summary .= "No dynamic analysis data found.\n";
+    
+        // Additional advice and security recommendations
+        $summaryParts[] = "نوصي بشدة باتخاذ التدابير الوقائية التالية:\n" .
+            "1. عدم النقر على الروابط غير الموثوقة.\n" .
+            "2. تحديث برامج الحماية بانتظام.\n" .
+            "3. تجنب تنزيل الملفات غير الموثوقة.\n" .
+            "4. فحص الروابط قبل فتحها.\n" .
+            "5. تجاهل الرسائل التي تطلب معلومات شخصية أو مالية بشكل غير عادي.\n" .
+            "6. إنشاء نسخ احتياطية من بيانات هاتفك بانتظام.\n" .
+            "اتباع هذه الخطوات يمكن أن يساعد في حماية معلوماتك الشخصية من التهديدات الإلكترونية.\n";
+    
+        Log::info('Final message parts generated: ' . json_encode($summaryParts));
+    
+        // Return the array of message parts
+        return $summaryParts;
     }
-
-    // Check for "Static Analysis (VirusTotal)" in the second element of the array
-    if (isset($data[1])) {
-        $staticAnalysis = $data[1];
-
-        // Extract key details from static analysis
-        $maliciousCount = $staticAnalysis['malicious'] ?? 0;
-        $suspiciousCount = $staticAnalysis['suspicious'] ?? 0;
-        $undetectedCount = $staticAnalysis['undetected'] ?? 0;
-        $harmlessCount = $staticAnalysis['harmless'] ?? 0;
-
-        // Append static analysis summary
-        $summary .= "\nStatic Analysis (VirusTotal):\n";
-        $summary .= "Malicious: $maliciousCount\n";
-        $summary .= "Suspicious: $suspiciousCount\n";
-        $summary .= "Undetected: $undetectedCount\n";
-        $summary .= "Harmless: $harmlessCount\n";
-    } else {
-        $summary .= "No static analysis data found.";
-    }
-
-    Log::info('Final summary generated: ' . $summary);
-
-    return $summary;
-}
-
-
+    
+    
 private function sendWhatsAppMessage($to, $body)
 {
     $sid = 'AC81956c1797639e578ee961fbd0367e02';
-    $token = '2a0e419b10cef3137758d6813b5a1576';
+    $token = '647abf2c73a31a9ef99c8a8c94416ffa';
     $twilio = new Client($sid, $token);
 
     $fromWhatsAppNumber = 'whatsapp:+14155238886';
